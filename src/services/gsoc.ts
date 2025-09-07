@@ -5,7 +5,7 @@ import { GITHUB_API_URL } from '../config/env';
 import axios from 'axios';
 
 // export const fetchGSoCOrganizations = async (): Promise<string[]> => {
-//     // Scrape GSoC organizations
+//     // Scrape OpenSourceorganizations
 //     return scrapeOrganizations();
 // };
 

@@ -74,6 +74,7 @@ const getGsocOrganizationsNames = async (req, res) => {
             .find({}) // Search entire collection with the query
             .project({ _id: 0, organisation: 1, github: 1 }) // Exclude _id field
             .toArray();
+        console.log(filteredOrganizations.length, "here is the length of the filtered organizations");
         // Return the filtered organizations with pagination metadata
         res.json({
             organizations: filteredOrganizations,
@@ -92,6 +93,7 @@ const getUnassignedIssues = async (req, res) => {
             headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` },
         });
         const repos = reposResponse.data;
+        console.log(repos.length, "here is the length of the repos");
         // Find the repository with the most open issues
         const repoWithMostOpenIssues = repos.reduce((prev, current) => {
             return (prev.open_issues > current.open_issues) ? prev : current;
@@ -99,8 +101,10 @@ const getUnassignedIssues = async (req, res) => {
         // Fetch issues for the repository with the most open issues
         const issuesResponse = await axios_1.default.get(`${env_1.GITHUB_API_URL}/repos/${org}/${repoWithMostOpenIssues.name}/issues?state=open`, { headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } });
         const issues = issuesResponse.data;
+        console.log(issues.length, "here is the length of the issues");
         // Filter for unassigned issues
         const unassignedIssues = issues.filter((issue) => !issue.assignee);
+        console.log(unassignedIssues.length, "here is the length of the unassigned issues");
         // Return unassigned issues from the repository with the most open issues
         res.json(unassignedIssues);
     }
@@ -135,6 +139,7 @@ const getPopularIssues = async (req, res) => {
         }
         // Step 2: Fetch total documents count for metadata
         const totalDocuments = await db_1.db.collection('gsoc_issues').countDocuments(query);
+        console.log(totalDocuments, "here is the total documents");
         // Step 3: Fetch paginated issues directly from the database
         let issues = await db_1.db.collection('gsoc_issues')
             .find(query)
@@ -142,6 +147,7 @@ const getPopularIssues = async (req, res) => {
             .skip(skip) // Skip documents for pagination
             .limit(parsedLimit) // Limit documents for pagination
             .toArray();
+        console.log(issues.length, "here is the length of the issues");
         // Step 4: If no issues are found and orgNames are provided, fetch unassigned issues for each organization
         if (issues.length === 0 && orgNames.length > 0) {
             console.log("No issues found, fetching unassigned issues...");
@@ -152,6 +158,7 @@ const getPopularIssues = async (req, res) => {
         }
         // Step 5: Calculate total pages
         const totalPages = Math.ceil(totalDocuments / parsedLimit);
+        console.log(totalPages, "here is the total pages");
         // Step 6: Return the response
         res.json({
             currentPage: parsedPage,
@@ -169,10 +176,13 @@ exports.getPopularIssues = getPopularIssues;
 const getPopularIssuesAndSave = async (req, res) => {
     try {
         // Step 1: Fetch all organizations from the database
+        console.log("Fetching organizations...");
         const organizations = await db_1.db.collection('gsoc_orgs').find().toArray();
+        console.log(organizations.length, "here is the length of the organizations");
         // Step 2: Filter organizations that participated in recent years
         const recentYears = ['2024', '2023', '2022', '2021', '2020', '2019'];
         const filteredOrgs = organizations.filter(org => org.gsoc_years && Object.keys(org.gsoc_years).some(year => recentYears.includes(year)));
+        console.log(filteredOrgs.length, "here is the length of the filtered organizations");
         const popularIssues = [];
         const currentDate = new Date();
         const startOfCurrentMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -185,6 +195,7 @@ const getPopularIssuesAndSave = async (req, res) => {
                     headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` },
                 });
                 const repos = reposResponse.data.slice(0, 5);
+                console.log(repos.length, "here is the length of the repos");
                 for (const repo of repos) {
                     try {
                         const issuesResponse = await axios_1.default.get(`${env_1.GITHUB_API_URL}/repos/${orgName}/${repo.name}/issues?state=open`, { headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } });
@@ -225,6 +236,7 @@ const getPopularIssuesAndSave = async (req, res) => {
                 // Continue to the next organization without breaking the flow
             }
         }
+        console.log(popularIssues.length, "here is the length of the popular issues");
         // Step 5: Sort the issues by comments and then by date
         popularIssues.sort((a, b) => {
             if (b.comments !== a.comments) {
@@ -234,6 +246,7 @@ const getPopularIssuesAndSave = async (req, res) => {
                 return new Date(b.created_at).getTime() - new Date(a.created_at).getTime(); // Sort by date descending
             }
         });
+        console.log(popularIssues.length, "here is the length of the popular issues");
         // Return the popular issues
         res.json(popularIssues.slice(0, 200));
     }

@@ -61,21 +61,37 @@ exports.app.use(express_winston_1.default.logger({
 exports.app.use(((0, cookie_parser_1.default)()));
 exports.app.use(express_1.default.json());
 exports.app.use((0, express_1.urlencoded)({ extended: true }));
-const allowedOrigins = [process.env.FRONTEND_URL, "http://localhost:3000"];
+const allowedOrigins = [
+    process.env.FRONTEND_URL || "http://localhost:3000",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175"
+];
 const corsOptions = {
     origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin)
             return callback(null, true);
-        if (allowedOrigins.indexOf(origin) !== -1 ||
-            /\.vercel\.app$/.test(origin)) {
-            callback(null, true);
+        // Check if origin is in allowed list
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
         }
-        else {
-            callback(new Error("Not allowed by CORS"));
+        // Allow Vercel deployments
+        if (/\.vercel\.app$/.test(origin)) {
+            return callback(null, true);
         }
+        // Allow localhost with any port in development
+        if (process.env.NODE_ENV === 'development' && /^http:\/\/localhost:\d+$/.test(origin)) {
+            return callback(null, true);
+        }
+        console.warn(`⚠️ CORS blocked request from origin: ${origin}`);
+        callback(new Error("Not allowed by CORS"));
     },
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     credentials: true,
+    optionsSuccessStatus: 200,
 };
 exports.app.use((0, cors_1.default)(corsOptions));
 // Routes
@@ -84,3 +100,28 @@ exports.app.get('/', async (req, res) => {
 });
 exports.app.use('/api/gsoc', gsoc_1.default);
 exports.app.use('/api/data', data_1.default);
+// Error handling middleware
+exports.app.use((err, req, res, next) => {
+    console.error('❌ Error:', err);
+    if (err.message === "Not allowed by CORS") {
+        res.status(403).json({
+            success: false,
+            message: "CORS Error: Origin not allowed",
+            error: process.env.NODE_ENV === 'development' ? err.message : "Forbidden"
+        });
+        return;
+    }
+    res.status(500).json({
+        success: false,
+        message: "Internal Server Error",
+        error: process.env.NODE_ENV === 'development' ? err.message : "Something went wrong"
+    });
+});
+// 404 handler
+exports.app.use('*', (req, res) => {
+    res.status(404).json({
+        success: false,
+        message: "Route not found",
+        path: req.originalUrl
+    });
+});

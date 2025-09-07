@@ -8,7 +8,7 @@ const db_1 = require("../db/db");
 const env_1 = require("../config/env");
 const axios_1 = __importDefault(require("axios"));
 // export const fetchGSoCOrganizations = async (): Promise<string[]> => {
-//     // Scrape GSoC organizations
+//     // Scrape OpenSourceorganizations
 //     return scrapeOrganizations();
 // };
 const fetchGSocOrganizations = async () => {
