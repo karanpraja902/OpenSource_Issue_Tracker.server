@@ -12,7 +12,7 @@ const axios_1 = __importDefault(require("axios"));
 //     return scrapeOrganizations();
 // };
 const fetchGSocOrganizations = async () => {
-    const organizations = await db_1.db.collection('gsoc_orgs').find().toArray();
+    const organizations = await (0, db_1.getDb)().collection('gsoc_orgs').find().toArray();
     const orgs_github = [];
     for (const org of organizations) {
         const url = new URL(org.github);

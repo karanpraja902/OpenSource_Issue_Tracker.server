@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { GITHUB_API_URL } from '../config/env';
-import { db } from '../db/db';
+import { getDb } from '../db/db';
 
 
 // Fetch repositories for a given organization
@@ -125,7 +125,7 @@ export const getOrgsUnassignedIssues = async (orgs: any[]): Promise<any[]> => {
 
                 for (const issue of issues) {
                     // Upsert issue into the database
-                    db.collection('gsoc_issues').updateOne(
+                    getDb().collection('gsoc_issues').updateOne(
                         { id: issue.id },
                         { $set: issue },
                         { upsert: true }

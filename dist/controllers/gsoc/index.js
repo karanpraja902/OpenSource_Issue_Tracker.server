@@ -41,14 +41,36 @@ const getGsocOrganizations = async (req, res) => {
         const parsedLimit = Math.max(parseInt(limit, 10) || 10, 1); // Ensure limit is at least 1
         const skip = (parsedPage - 1) * parsedLimit;
         // Count total documents for pagination metadata
-        const totalDocuments = await db_1.db.collection('gsoc_orgs').countDocuments(query);
-        // Fetch filtered and paginated organizations
-        const filteredOrganizations = await db_1.db.collection('gsoc_orgs')
-            .find(query) // Search entire collection with the query
-            .sort(sortCriteria) // Apply sorting
-            .skip(skip) // Skip documents for pagination
-            .limit(parsedLimit) // Limit results per page
-            .toArray();
+        let totalDocuments;
+        let filteredOrganizations;
+        try {
+            totalDocuments = await (0, db_1.getDb)().collection('gsoc_orgs').countDocuments(query);
+        }
+        catch (dbError) {
+            console.error('❌ Database error counting documents:', dbError.message);
+            res.status(500).json({
+                error: 'Database connection error. Please try again later.',
+                details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+            });
+            return;
+        }
+        try {
+            // Fetch filtered and paginated organizations
+            filteredOrganizations = await (0, db_1.getDb)().collection('gsoc_orgs')
+                .find(query) // Search entire collection with the query
+                .sort(sortCriteria) // Apply sorting
+                .skip(skip) // Skip documents for pagination
+                .limit(parsedLimit) // Limit results per page
+                .toArray();
+        }
+        catch (dbError) {
+            console.error('❌ Database error fetching organizations:', dbError.message);
+            res.status(500).json({
+                error: 'Database connection error. Please try again later.',
+                details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+            });
+            return;
+        }
         // Calculate total pages
         const totalPages = Math.ceil(totalDocuments / parsedLimit);
         console.log(filteredOrganizations.length, 'here is the filtered organizations');
@@ -69,11 +91,22 @@ exports.getGsocOrganizations = getGsocOrganizations;
 const getGsocOrganizationsNames = async (req, res) => {
     try {
         // Fetch filters and pagination parameters from the query
-        // Fetch filtered and paginated organizations
-        const filteredOrganizations = await db_1.db.collection('gsoc_orgs')
-            .find({}) // Search entire collection with the query
-            .project({ _id: 0, organisation: 1, github: 1 }) // Exclude _id field
-            .toArray();
+        let filteredOrganizations;
+        try {
+            // Fetch filtered and paginated organizations
+            filteredOrganizations = await (0, db_1.getDb)().collection('gsoc_orgs')
+                .find({}) // Search entire collection with the query
+                .project({ _id: 0, organisation: 1, github: 1 }) // Exclude _id field
+                .toArray();
+        }
+        catch (dbError) {
+            console.error('❌ Database error fetching organization names:', dbError.message);
+            res.status(500).json({
+                error: 'Database connection error. Please try again later.',
+                details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+            });
+            return;
+        }
         console.log(filteredOrganizations.length, "here is the length of the filtered organizations");
         // Return the filtered organizations with pagination metadata
         res.json({
@@ -82,7 +115,10 @@ const getGsocOrganizationsNames = async (req, res) => {
     }
     catch (error) {
         console.error('Error:', error.message);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+            error: 'Internal server error. Please try again later.',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 };
 exports.getGsocOrganizationsNames = getGsocOrganizationsNames;
@@ -138,10 +174,10 @@ const getPopularIssues = async (req, res) => {
             };
         }
         // Step 2: Fetch total documents count for metadata
-        const totalDocuments = await db_1.db.collection('gsoc_issues').countDocuments(query);
+        const totalDocuments = await (0, db_1.getDb)().collection('gsoc_issues').countDocuments(query);
         console.log(totalDocuments, "here is the total documents");
         // Step 3: Fetch paginated issues directly from the database
-        let issues = await db_1.db.collection('gsoc_issues')
+        let issues = await (0, db_1.getDb)().collection('gsoc_issues')
             .find(query)
             .sort({ created_at: -1 }) // Sort by creation date
             .skip(skip) // Skip documents for pagination
@@ -177,7 +213,7 @@ const getPopularIssuesAndSave = async (req, res) => {
     try {
         // Step 1: Fetch all organizations from the database
         console.log("Fetching organizations...");
-        const organizations = await db_1.db.collection('gsoc_orgs').find().toArray();
+        const organizations = await (0, db_1.getDb)().collection('gsoc_orgs').find().toArray();
         console.log(organizations.length, "here is the length of the organizations");
         // Step 2: Filter organizations that participated in recent years
         const recentYears = ['2024', '2023', '2022', '2021', '2020', '2019'];
@@ -203,7 +239,7 @@ const getPopularIssuesAndSave = async (req, res) => {
                         console.log(issues.length, "here is the length");
                         for (const issue of issues) {
                             try {
-                                const updatedIssue = await db_1.db.collection('gsoc_issues').updateOne({ id: issue.id }, { $set: issue }, { upsert: true });
+                                const updatedIssue = await (0, db_1.getDb)().collection('gsoc_issues').updateOne({ id: issue.id }, { $set: issue }, { upsert: true });
                                 console.log(updatedIssue.modifiedCount, "here are updated issues");
                             }
                             catch (updateError) {
@@ -262,7 +298,7 @@ const getOrganizationDetails = async (req, res) => {
         if (!orgId) {
             return res.status(400).json({ error: 'Organization ID is required' });
         }
-        const organizationDetails = await db_1.db.collection('gsoc_orgs').findOne({ _id: new mongoose_1.default.Types.ObjectId(orgId) });
+        const organizationDetails = await (0, db_1.getDb)().collection('gsoc_orgs').findOne({ _id: new mongoose_1.default.Types.ObjectId(orgId) });
         // console.log(organizationDetails, "here is the org details");
         if (!organizationDetails) {
             return res.status(404).json({ error: 'Organization not found' });

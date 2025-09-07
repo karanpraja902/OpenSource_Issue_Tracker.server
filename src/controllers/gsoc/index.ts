@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { db } from '../../db/db';
+import { getDb } from '../../db/db';
 import axios from 'axios';
 import { GITHUB_API_URL } from '../../config/env';
 import { getOrgName } from '../../services/gsoc';
@@ -44,15 +44,36 @@ export const getGsocOrganizations = async (req: Request, res: Response): Promise
         const skip = (parsedPage - 1) * parsedLimit;
 
         // Count total documents for pagination metadata
-        const totalDocuments = await db.collection('gsoc_orgs').countDocuments(query);
+        let totalDocuments: number;
+        let filteredOrganizations: any[];
+        
+        try {
+            totalDocuments = await getDb().collection('gsoc_orgs').countDocuments(query);
+        } catch (dbError: any) {
+            console.error('❌ Database error counting documents:', dbError.message);
+            res.status(500).json({ 
+                error: 'Database connection error. Please try again later.',
+                details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+            });
+            return;
+        }
 
-        // Fetch filtered and paginated organizations
-        const filteredOrganizations = await db.collection('gsoc_orgs')
-            .find(query) // Search entire collection with the query
-            .sort(sortCriteria) // Apply sorting
-            .skip(skip) // Skip documents for pagination
-            .limit(parsedLimit) // Limit results per page
-            .toArray();
+        try {
+            // Fetch filtered and paginated organizations
+            filteredOrganizations = await getDb().collection('gsoc_orgs')
+                .find(query) // Search entire collection with the query
+                .sort(sortCriteria) // Apply sorting
+                .skip(skip) // Skip documents for pagination
+                .limit(parsedLimit) // Limit results per page
+                .toArray();
+        } catch (dbError: any) {
+            console.error('❌ Database error fetching organizations:', dbError.message);
+            res.status(500).json({ 
+                error: 'Database connection error. Please try again later.',
+                details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+            });
+            return;
+        }
 
         // Calculate total pages
         const totalPages = Math.ceil(totalDocuments / parsedLimit);
@@ -74,13 +95,23 @@ export const getGsocOrganizations = async (req: Request, res: Response): Promise
 export const getGsocOrganizationsNames = async (req: Request, res: Response): Promise<void> => {
     try {
         // Fetch filters and pagination parameters from the query
-        
+        let filteredOrganizations: any[];
 
-        // Fetch filtered and paginated organizations
-        const filteredOrganizations = await db.collection('gsoc_orgs')
-            .find({}) // Search entire collection with the query
-            .project({ _id: 0, organisation: 1, github: 1 }) // Exclude _id field
-            .toArray();
+        try {
+            // Fetch filtered and paginated organizations
+            filteredOrganizations = await getDb().collection('gsoc_orgs')
+                .find({}) // Search entire collection with the query
+                .project({ _id: 0, organisation: 1, github: 1 }) // Exclude _id field
+                .toArray();
+        } catch (dbError: any) {
+            console.error('❌ Database error fetching organization names:', dbError.message);
+            res.status(500).json({ 
+                error: 'Database connection error. Please try again later.',
+                details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+            });
+            return;
+        }
+
         console.log(filteredOrganizations.length, "here is the length of the filtered organizations");
 
         // Return the filtered organizations with pagination metadata
@@ -89,7 +120,10 @@ export const getGsocOrganizationsNames = async (req: Request, res: Response): Pr
         });
     } catch (error: any) {
         console.error('Error:', error.message);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ 
+            error: 'Internal server error. Please try again later.',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 };
 
@@ -155,10 +189,10 @@ export const getPopularIssues = async (req: Request, res: Response): Promise<voi
         }
 
         // Step 2: Fetch total documents count for metadata
-        const totalDocuments = await db.collection('gsoc_issues').countDocuments(query);
+        const totalDocuments = await getDb().collection('gsoc_issues').countDocuments(query);
         console.log(totalDocuments, "here is the total documents");
         // Step 3: Fetch paginated issues directly from the database
-        let issues = await db.collection('gsoc_issues')
+        let issues = await getDb().collection('gsoc_issues')
             .find(query)
             .sort({ created_at: -1 }) // Sort by creation date
             .skip(skip) // Skip documents for pagination
@@ -201,7 +235,7 @@ export const getPopularIssuesAndSave = async (req: Request, res: Response): Prom
     try {
         // Step 1: Fetch all organizations from the database
         console.log("Fetching organizations...");
-        const organizations = await db.collection('gsoc_orgs').find().toArray();
+        const organizations = await getDb().collection('gsoc_orgs').find().toArray();
 console.log(organizations.length, "here is the length of the organizations");
         // Step 2: Filter organizations that participated in recent years
         const recentYears = ['2024', '2023', '2022', '2021', '2020', '2019'];
@@ -234,7 +268,7 @@ console.log(repos.length, "here is the length of the repos");
 
                         for (const issue of issues) {
                             try {
-                                const updatedIssue = await db.collection('gsoc_issues').updateOne(
+                                const updatedIssue = await getDb().collection('gsoc_issues').updateOne(
                                     { id: issue.id },
                                     { $set: issue },
                                     { upsert: true }
@@ -300,7 +334,7 @@ export const getOrganizationDetails = async (req: Request, res: Response): Promi
             return res.status(400).json({ error: 'Organization ID is required' });
         }
 
-        const organizationDetails = await db.collection('gsoc_orgs').findOne({ _id: new mongoose.Types.ObjectId(orgId) });
+        const organizationDetails = await getDb().collection('gsoc_orgs').findOne({ _id: new mongoose.Types.ObjectId(orgId) });
 
         // console.log(organizationDetails, "here is the org details");
         if (!organizationDetails) {

@@ -5,7 +5,7 @@ dotenv.config();
 
 let db: mongoose.Connection;
 
-const ConnectToDB = async () => {
+const ConnectToDB = async (): Promise<mongoose.Connection> => {
   const DatabaseUrl = process.env.DB_URL as string;
   
   if (!DatabaseUrl) {
@@ -33,10 +33,25 @@ const ConnectToDB = async () => {
     });
     
     console.log("✅ Database connected successfully");
+    return db;
   } catch (error) {
     console.error("❌ Error connecting to database:", error);
     process.exit(1);
   }
+};
+
+// Export a function to get the database connection
+export const getDb = (): mongoose.Connection => {
+  if (!db) {
+    throw new Error("Database not connected. Make sure to call ConnectToDB() first.");
+  }
+  
+  // Check if the connection is still active
+  if (db.readyState !== 1) {
+    throw new Error(`Database connection is not ready. Current state: ${db.readyState}. Please check your database connection.`);
+  }
+  
+  return db;
 };
 
 export { db };

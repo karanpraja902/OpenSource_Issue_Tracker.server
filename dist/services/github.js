@@ -111,7 +111,7 @@ const getOrgsUnassignedIssues = async (orgs) => {
                 const issues = issuesResponse.data;
                 for (const issue of issues) {
                     // Upsert issue into the database
-                    db_1.db.collection('gsoc_issues').updateOne({ id: issue.id }, { $set: issue }, { upsert: true });
+                    (0, db_1.getDb)().collection('gsoc_issues').updateOne({ id: issue.id }, { $set: issue }, { upsert: true });
                     // Filter unassigned issues and add them to the results
                     if (!issue.assignee) {
                         allUnassignedIssues.push(issue);

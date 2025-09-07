@@ -1,6 +1,6 @@
 import { fetchIssuesForOrg } from './github';
 import { scrapeOrganizations } from '../utils/scraper';
-import { db } from '../db/db';
+import { getDb } from '../db/db';
 import { GITHUB_API_URL } from '../config/env';
 import axios from 'axios';
 
@@ -10,7 +10,7 @@ import axios from 'axios';
 // };
 
 export const fetchGSocOrganizations = async (): Promise<string[]> => {
-    const organizations = await db.collection('gsoc_orgs').find().toArray();
+    const organizations = await getDb().collection('gsoc_orgs').find().toArray();
     const orgs_github: string[] = [];
     for (const org of organizations) {
         const url = new URL(org.github);
