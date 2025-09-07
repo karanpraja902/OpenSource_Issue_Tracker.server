@@ -33,44 +33,13 @@ app.use((cookieParser()));
 app.use(express.json());
 app.use(urlencoded({ extended: true }));
 
-const allowedOrigins = [
-  process.env.FRONTEND_URL || "http://localhost:3000",
-  "http://localhost:3000",
-  "http://localhost:3001",
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:5175"
-];
 
-const corsOptions: cors.CorsOptions = {
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
 
-    // Check if origin is in allowed list
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    // Allow Vercel deployments
-    if (/\.vercel\.app$/.test(origin)) {
-      return callback(null, true);
-    }
-
-    // Allow localhost with any port in development
-    if (process.env.NODE_ENV === 'development' && /^http:\/\/localhost:\d+$/.test(origin)) {
-      return callback(null, true);
-    }
-
-    console.warn(`⚠️ CORS blocked request from origin: ${origin}`);
-    callback(new Error("Not allowed by CORS"));
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:3000",
   credentials: true,
-  optionsSuccessStatus: 200,
-};
-
-app.use(cors(corsOptions));
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+}));
 
 // Routes
 app.get('/', async (req, res) => {
